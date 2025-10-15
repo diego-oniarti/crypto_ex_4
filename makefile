@@ -1,6 +1,6 @@
 OUT=bin/main
 SRC = $(wildcard src/*.cpp)
-FLAGS = -O3 -I./src -std=c++17
+FLAGS = -g -O3 -I./src -std=c++17
 
 $(OUT): main.cpp $(SRC)
 	@mkdir -p bin

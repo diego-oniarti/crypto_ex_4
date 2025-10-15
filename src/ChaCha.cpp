@@ -1,12 +1,20 @@
 #include "ChaCha.h"
 #include <array>
+#include <cstdint>
+#include <cstdio>
 #include <iomanip>
 #include <iostream>
+#include <ostream>
+#include <vector>
 
 void rotate_left(uint32_t &v, int n) {
     n ^= 32;
     if (n == 0) return;
     v = (v << n) | (v >> (32 - n));
+}
+
+uint32_t combine(byte_t a, byte_t b, byte_t c, byte_t d) {
+    return (((uint32_t)a)<<24) | (((uint32_t)b)<<16) | (((uint32_t)c)<<8) | (((uint32_t)d)<<0);
 }
 
 void ChaCha20::quarter(state_t& state, int A, int B, int C, int D) {
@@ -24,29 +32,44 @@ uint32_t& ChaCha20::at(state_t& state, int p){
     return state[p/4][p%4];
 }
 
-std::array<byte_t, 64> ChaCha20::block(std::array<byte_t, 32> key, uint32_t count, std::array<byte_t,12> nonce) {
+block_t ChaCha20::block(std::array<byte_t, 32> key, uint32_t count, std::array<byte_t,12> nonce, bool custom = false) {
     state_t state;
 
-    state[0] = {{0x61707865, 0x3320646e, 0x79622d32, 0x6b206574}};
+    std::vector<byte_t> const_vec;
+    if (!custom) {
+        const_vec = convert_string("expand 32-byte k");
+        // state[0] = {{0x61707865, 0x3320646e, 0x79622d32, 0x6b206574}};
+    }else{
+        const_vec = convert_string("DanceOfRaloberon");
+        // state[0] = {{0x636E6144, 0x52664F65, 0x626F6C61, 0x6E6F7265}};
+    }
+    for (int i=0; i<4; i++) {
+        state[0][i] = combine(
+                const_vec[i*4  ],
+                const_vec[i*4+1],
+                const_vec[i*4+2],
+                const_vec[i*4+3]
+                );
+    }
 
     int key_index = 0;
     for (int i=4; i<=11; i++) {
-        uint32_t b1 = key[key_index++];
-        uint32_t b2 = key[key_index++];
-        uint32_t b3 = key[key_index++];
-        uint32_t b4 = key[key_index++];
-        at(state, i) = (b4<<24) | (b3<<16) | (b2<<8) | b1;
+        byte_t b1 = key[key_index++];
+        byte_t b2 = key[key_index++];
+        byte_t b3 = key[key_index++];
+        byte_t b4 = key[key_index++];
+        at(state, i) = combine(b4, b3, b2, b1);
     }
 
     at(state, 12) = count;
 
     int nonce_index = 0;
     for (int i=13; i<=15; i++) {
-        uint32_t b1 = nonce[nonce_index++];
-        uint32_t b2 = nonce[nonce_index++];
-        uint32_t b3 = nonce[nonce_index++];
-        uint32_t b4 = nonce[nonce_index++];
-        at(state, i) = (b4<<24) | (b3<<16) | (b2<<8) | b1;
+        byte_t b1 = nonce[nonce_index++];
+        byte_t b2 = nonce[nonce_index++];
+        byte_t b3 = nonce[nonce_index++];
+        byte_t b4 = nonce[nonce_index++];
+        at(state, i) = combine(b4, b3, b2, b1);
     }
 
     state_t working_state(state);
@@ -60,13 +83,14 @@ std::array<byte_t, 64> ChaCha20::block(std::array<byte_t, 32> key, uint32_t coun
         }
     }
 
-    std::array<byte_t, 64> ret;
+    block_t ret;
     for (int i=0; i<16; i++) {
         int n = at(state, i);
         for (int j=0; j<4; j++) {
-            ret[i*4 + j] = (n&(0xff<<(8*j)))>>(8*j);
+            ret[i*4 + j] = ( n>>(j*8) )&0xff;
         }
     }
+
 
     return ret;
 }
@@ -91,4 +115,29 @@ void ChaCha20::print_state(state_t state) {
         }
         std::cout << std::endl;
     }
+}
+
+byte_t *ChaCha20::encode(std::string plaintext, std::array<byte_t, 32> key,
+        uint32_t count, std::array<byte_t, 12> nonce) {
+    block_t key_stream;
+    byte_t *ret = (byte_t *)malloc(plaintext.length());
+    for (int i=0; i<plaintext.length(); i++) {
+        if (i%64 == 0) {
+            key_stream = block(key, count++, nonce);
+        }
+        ret[i] = ((byte_t)plaintext[i]) ^ key_stream[i%64];
+    }
+
+    return ret;
+}
+
+std::vector<byte_t> ChaCha20::convert_string(std::string s) {
+    std::vector<byte_t> ret;
+    for (int i=0; i<s.length(); i+=4) {
+        for (int j=3; j>=0; j--) {
+            ret.push_back((byte_t)s[i+j]);
+        }
+    }
+
+    return ret;
 }
