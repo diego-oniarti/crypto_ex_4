@@ -1,12 +1,10 @@
 #include "ChaCha.h"
-#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
 #include <ostream>
 #include <string>
-#include <vector>
 
 int main (int argc, char *argv[]) {
     // Test against test vector
@@ -49,8 +47,9 @@ int main (int argc, char *argv[]) {
     // Convert the nonce
     std::string nonce_str = "FenceOrDance";
     std::array<byte_t, 12> nonce;
-    std::vector<byte_t> nonce_vec = ChaCha20::convert_string(nonce_str, false);
-    std::copy(nonce_vec.begin(), nonce_vec.end(), nonce.begin());
+    for (int i=0; i<nonce_str.length(); i++) {
+        nonce[i] = nonce_str[i];
+    }
     std::cout << "Nonce   : ";
     for (byte_t v: nonce) {
         std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)v << " ";

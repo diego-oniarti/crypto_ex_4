@@ -13,6 +13,11 @@ void rotate_left(uint32_t &v, int n) {
     v = (v << n) | (v >> (32 - n));
 }
 
+/*
+ * Combines 4 bytes.
+ * A = MSB
+ * D = LSB
+ */
 uint32_t combine(byte_t a, byte_t b, byte_t c, byte_t d) {
     return (((uint32_t)a)<<24) | (((uint32_t)b)<<16) | (((uint32_t)c)<<8) | (((uint32_t)d)<<0);
 }
@@ -33,21 +38,15 @@ uint32_t& ChaCha20::at(state_t& state, int p){
 }
 
 block_t ChaCha20::block(std::array<byte_t, 32> key, uint32_t count, std::array<byte_t,12> nonce, bool custom = false) {
-    // std::cout << "Generating block";
-    // std::cout << "\nKey  :"; for(byte_t k: key) std::cout << std::hex << (int)k << " ";
-    // std::cout << "\nCount:" << std::hex << count;
-    // std::cout << "\nNonce:"; for(byte_t k: nonce) std::cout << std::hex << (int)k << " ";
-    // std::cout << std::endl;
-
     state_t state;
 
     // Initialize the first row with a constant
     std::vector<byte_t> const_vec;
     if (!custom) {
-        const_vec = convert_string("expand 32-byte k", true);
+        const_vec = convert_string("expand 32-byte k");
         // state[0] = {{0x61707865, 0x3320646e, 0x79622d32, 0x6b206574}};
     }else{
-        const_vec = convert_string("DanceOfRaloberon", true);
+        const_vec = convert_string("DanceOfRaloberon");
         // state[0] = {{0x636E6144, 0x52664F65, 0x626F6C61, 0x6E6F7265}};
     }
     for (int i=0; i<4; i++) {
@@ -81,6 +80,10 @@ block_t ChaCha20::block(std::array<byte_t, 32> key, uint32_t count, std::array<b
         byte_t b4 = nonce[nonce_index++];
         at(state, i) = combine(b4, b3, b2, b1);
     }
+
+    // DEBUG
+    // std::cout << "Initialized state:" << std::endl;
+    // print_state(state);
 
     // clone the state and perform the inner block
     state_t working_state(state);
@@ -148,17 +151,11 @@ byte_t *ChaCha20::encode(std::string plaintext, std::array<byte_t, 32> key,
  * Takes a string and converts it to a byte string.
  * The order is the one required when converting the state constant 32107654.
  */
-std::vector<byte_t> ChaCha20::convert_string(std::string s, bool reverse = true) {
+std::vector<byte_t> ChaCha20::convert_string(std::string s) {
     std::vector<byte_t> ret;
     for (int i=0; i<s.length(); i+=4) {
-        if (reverse) {
-            for (int j=3; j>=0; j--) {
-                ret.push_back((byte_t)s[i+j]);
-            }
-        }else{
-            for (int j=0; j<=3; j++) {
-                ret.push_back((byte_t)s[i+j]);
-            }
+        for (int j=3; j>=0; j--) {
+            ret.push_back((byte_t)s[i+j]);
         }
     }
 
