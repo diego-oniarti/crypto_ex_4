@@ -40,7 +40,7 @@ int main (int argc, char *argv[]) {
     for (int i=plaintext_str.length(); i<key.size(); i++) {
         key[i] = 0;
     }
-    std::cout << "Key: ";
+    std::cout << "Key     : ";
     for (byte_t v: key) {
         std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)v << " ";
     }
@@ -49,13 +49,12 @@ int main (int argc, char *argv[]) {
     // Convert the nonce
     std::string nonce_str = "FenceOrDance";
     std::array<byte_t, 12> nonce;
-    std::vector<byte_t> nonce_vec = ChaCha20::convert_string(nonce_str);
+    std::vector<byte_t> nonce_vec = ChaCha20::convert_string(nonce_str, false);
     std::copy(nonce_vec.begin(), nonce_vec.end(), nonce.begin());
-    std::cout << "Nonce: ";
+    std::cout << "Nonce   : ";
     for (byte_t v: nonce) {
         std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)v << " ";
-    }
-    std::cout << std::endl;
+    } std::cout << std::endl;
 
     block_t exercise = ChaCha20::block(
             key,

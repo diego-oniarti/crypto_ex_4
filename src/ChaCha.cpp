@@ -33,14 +33,21 @@ uint32_t& ChaCha20::at(state_t& state, int p){
 }
 
 block_t ChaCha20::block(std::array<byte_t, 32> key, uint32_t count, std::array<byte_t,12> nonce, bool custom = false) {
+    // std::cout << "Generating block";
+    // std::cout << "\nKey  :"; for(byte_t k: key) std::cout << std::hex << (int)k << " ";
+    // std::cout << "\nCount:" << std::hex << count;
+    // std::cout << "\nNonce:"; for(byte_t k: nonce) std::cout << std::hex << (int)k << " ";
+    // std::cout << std::endl;
+
     state_t state;
 
+    // Initialize the first row with a constant
     std::vector<byte_t> const_vec;
     if (!custom) {
-        const_vec = convert_string("expand 32-byte k");
+        const_vec = convert_string("expand 32-byte k", true);
         // state[0] = {{0x61707865, 0x3320646e, 0x79622d32, 0x6b206574}};
     }else{
-        const_vec = convert_string("DanceOfRaloberon");
+        const_vec = convert_string("DanceOfRaloberon", true);
         // state[0] = {{0x636E6144, 0x52664F65, 0x626F6C61, 0x6E6F7265}};
     }
     for (int i=0; i<4; i++) {
@@ -52,6 +59,7 @@ block_t ChaCha20::block(std::array<byte_t, 32> key, uint32_t count, std::array<b
                 );
     }
 
+    // load the key into the state
     int key_index = 0;
     for (int i=4; i<=11; i++) {
         byte_t b1 = key[key_index++];
@@ -61,8 +69,10 @@ block_t ChaCha20::block(std::array<byte_t, 32> key, uint32_t count, std::array<b
         at(state, i) = combine(b4, b3, b2, b1);
     }
 
+    // load the initial count into the state
     at(state, 12) = count;
 
+    // load the nonce into the state
     int nonce_index = 0;
     for (int i=13; i<=15; i++) {
         byte_t b1 = nonce[nonce_index++];
@@ -72,17 +82,20 @@ block_t ChaCha20::block(std::array<byte_t, 32> key, uint32_t count, std::array<b
         at(state, i) = combine(b4, b3, b2, b1);
     }
 
+    // clone the state and perform the inner block
     state_t working_state(state);
     for (int i=0; i<10; i++) {
         inner_block(working_state);
     }
 
+    // sum the working state into the state
     for (int i=0; i<4; i++) {
         for (int j=0; j<4; j++) {
             state[i][j] += working_state[i][j];
         }
     }
 
+    // serialize the state
     block_t ret;
     for (int i=0; i<16; i++) {
         int n = at(state, i);
@@ -91,12 +104,12 @@ block_t ChaCha20::block(std::array<byte_t, 32> key, uint32_t count, std::array<b
         }
     }
 
-
     return ret;
 }
 
-
-
+/*
+ * As taken from the paper
+ */
 void ChaCha20::inner_block(state_t &state) {
     quarter(state, 0, 4, 8 , 12);
     quarter(state, 1, 5, 9 , 13);
@@ -122,7 +135,7 @@ byte_t *ChaCha20::encode(std::string plaintext, std::array<byte_t, 32> key,
     block_t key_stream;
     byte_t *ret = (byte_t *)malloc(plaintext.length());
     for (int i=0; i<plaintext.length(); i++) {
-        if (i%64 == 0) {
+        if (i%64 == 0) { // When a block runs out (or at the start) generate a new one
             key_stream = block(key, count++, nonce);
         }
         ret[i] = ((byte_t)plaintext[i]) ^ key_stream[i%64];
@@ -131,11 +144,21 @@ byte_t *ChaCha20::encode(std::string plaintext, std::array<byte_t, 32> key,
     return ret;
 }
 
-std::vector<byte_t> ChaCha20::convert_string(std::string s) {
+/*
+ * Takes a string and converts it to a byte string.
+ * The order is the one required when converting the state constant 32107654.
+ */
+std::vector<byte_t> ChaCha20::convert_string(std::string s, bool reverse = true) {
     std::vector<byte_t> ret;
     for (int i=0; i<s.length(); i+=4) {
-        for (int j=3; j>=0; j--) {
-            ret.push_back((byte_t)s[i+j]);
+        if (reverse) {
+            for (int j=3; j>=0; j--) {
+                ret.push_back((byte_t)s[i+j]);
+            }
+        }else{
+            for (int j=0; j<=3; j++) {
+                ret.push_back((byte_t)s[i+j]);
+            }
         }
     }
 

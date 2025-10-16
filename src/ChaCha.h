@@ -19,5 +19,5 @@ namespace ChaCha20 {
     void quarter(state_t&, int, int, int, int);
     uint32_t& at(state_t&, int);
 
-    std::vector<byte_t> convert_string(std::string);
+    std::vector<byte_t> convert_string(std::string, bool);
 };
